@@ -90,6 +90,9 @@ run while testing, and you have to remember to turn them on.
 task rust
 ```
 
+Or [try it in your browser on the Rust Playground](https://play.rust-lang.org/?version=stable&mode=debug&edition=2024&gist=66a06e8db844cbfd119fc47859921583)
+and press **Run**.
+
 ```text
 error[E0502]: cannot borrow `values` as mutable because it is also borrowed as immutable
 ```
