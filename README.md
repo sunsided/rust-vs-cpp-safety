@@ -96,47 +96,6 @@ Sanitizers are great, but they only catch bugs on code paths you actually
 run while testing, and you have to remember to turn them on. (And then find
 the offending line in the code.)
 
-### What Go does
-
-Go has a garbage collector, so the old block can't be freed while something
-still points into it. Same program in Go ([`go/dangling.go`](go/dangling.go)),
-with one write added to make the effect visible:
-
-```go
-values := []int{10, 20, 30}
-first := &values[0]
-
-values = append(values, 40)
-
-*first = 99
-
-fmt.Println(values[0]) // 10
-fmt.Println(*first)    // 99
-```
-
-```sh
-task go
-```
-
-Or [try it in your browser on the Go Playground](https://go.dev/play/p/LydrXhzUKwV)
-and press **Run**.
-
-It compiles, `go vet` has nothing to say, and it prints `10` and `99`. No
-use-after-free, no garbage, nothing to exploit. But `append` still moved the
-elements to a new block, and `first` still points into the old one. The old
-block stays alive just because `first` points to it, and the write lands
-there, where nobody else will ever see it. `first` and `values[0]` look like
-the same variable and quietly aren't anymore.
-
-It gets worse: whether `append` reallocates depends on the slice's spare
-capacity. Create the slice with `make([]int, 3, 10)` instead and `append`
-writes in place, `first` stays valid, and the program prints `99` twice. Same
-code, different behavior, decided by an allocation somewhere else.
-
-So Go fixes the *memory* bug from C++ but keeps the *logic* bug, and no tool
-flags it. The race detector won't, there's no race. `go vet` won't, it's
-legal code.
-
 ### What Rust does
 
 ```sh
@@ -194,6 +153,47 @@ C++ lets you forget it and Rust doesn't.
 
 `rust/dangling.rs` is also included in [`src/lib.rs`](src/lib.rs) as a
 `compile_fail` doctest, so `task test` fails if that code ever compiles.
+
+### As a bonus: What Go does
+
+Go has a garbage collector, so the old block can't be freed while something
+still points into it. Same program in Go ([`go/dangling.go`](go/dangling.go)),
+with one write added to make the effect visible:
+
+```go
+values := []int{10, 20, 30}
+first := &values[0]
+
+values = append(values, 40)
+
+*first = 99
+
+fmt.Println(values[0]) // 10
+fmt.Println(*first)    // 99
+```
+
+```sh
+task go
+```
+
+Or [try it in your browser on the Go Playground](https://go.dev/play/p/LydrXhzUKwV)
+and press **Run**.
+
+It compiles, `go vet` has nothing to say, and it prints `10` and `99`. No
+use-after-free, no garbage, nothing to exploit. But `append` still moved the
+elements to a new block, and `first` still points into the old one. The old
+block stays alive just because `first` points to it, and the write lands
+there, where nobody else will ever see it. `first` and `values[0]` look like
+the same variable and quietly aren't anymore.
+
+It gets worse: whether `append` reallocates depends on the slice's spare
+capacity. Create the slice with `make([]int, 3, 10)` instead and `append`
+writes in place, `first` stays valid, and the program prints `99` twice. Same
+code, different behavior, decided by an allocation somewhere else.
+
+So Go fixes the *memory* bug from C++ but keeps the *logic* bug, and no tool
+flags it. The race detector won't, there's no race. `go vet` won't, it's
+legal code.
 
 ---
 
