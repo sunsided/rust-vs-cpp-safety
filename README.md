@@ -268,3 +268,7 @@ every one of those blocks with a text search.
 | `task ci` | Format check, clippy, tests and the ASan check |
 | `task build` | Build everything, including the fuzz targets |
 | `task clean` / `task fuzz:clean` | Remove build output / fuzzer corpus and crashes |
+
+## License
+
+[EUPL-1.2](LICENSE)
