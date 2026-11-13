@@ -63,6 +63,15 @@ tasks:
       - g++ -Wall -Wextra -std=c++17 cpp/dangling.cpp -o {{.CPP_OUT}}/dangling
       - '{{.CPP_OUT}}/dangling'
 
+  go:
+    desc: Run the Go version of the dangling-reference example (prints 10 and 99)
+    preconditions:
+      - sh: command -v go
+        msg: "go not found — install Go from https://go.dev/dl/"
+    cmds:
+      - go vet go/dangling.go
+      - go run go/dangling.go
+
   rust:
     desc: Try compiling the Rust dangling-reference example (expected to fail with E0502)
     preconditions:

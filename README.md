@@ -11,6 +11,9 @@ run yourself, what Rust actually changes and what it doesn't:
    wrong assumptions. It turns them into a clean crash instead of memory
    corruption, and a fuzzer finds that crash in seconds.
 
+Part 1 also shows the same code in Go, which sits in between: memory safe,
+but just as quiet about the bug as C++.
+
 Neither half of the story is "Rust is magic". Together they show where the
 line is.
 
@@ -22,6 +25,7 @@ You need:
   `rustup toolchain install nightly`
 - [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz): `cargo install cargo-fuzz`
 - `g++` for the C++ example
+- [Go](https://go.dev/dl/) for the Go example (optional)
 - [Task](https://taskfile.dev), a small command runner. Run `task` to list
   everything you can do here.
 
@@ -92,6 +96,47 @@ Sanitizers are great, but they only catch bugs on code paths you actually
 run while testing, and you have to remember to turn them on. (And then find
 the offending line in the code.)
 
+### What Go does
+
+Go has a garbage collector, so the old block can't be freed while something
+still points into it. Same program in Go ([`go/dangling.go`](go/dangling.go)),
+with one write added to make the effect visible:
+
+```go
+values := []int{10, 20, 30}
+first := &values[0]
+
+values = append(values, 40)
+
+*first = 99
+
+fmt.Println(values[0]) // 10
+fmt.Println(*first)    // 99
+```
+
+```sh
+task go
+```
+
+Or [try it in your browser on the Go Playground](https://go.dev/play/p/LydrXhzUKwV)
+and press **Run**.
+
+It compiles, `go vet` has nothing to say, and it prints `10` and `99`. No
+use-after-free, no garbage, nothing to exploit. But `append` still moved the
+elements to a new block, and `first` still points into the old one. The old
+block stays alive just because `first` points to it, and the write lands
+there, where nobody else will ever see it. `first` and `values[0]` look like
+the same variable and quietly aren't anymore.
+
+It gets worse: whether `append` reallocates depends on the slice's spare
+capacity. Create the slice with `make([]int, 3, 10)` instead and `append`
+writes in place, `first` stays valid, and the program prints `99` twice. Same
+code, different behavior, decided by an allocation somewhere else.
+
+So Go fixes the *memory* bug from C++ but keeps the *logic* bug, and no tool
+flags it. The race detector won't, there's no race. `go vet` won't, it's
+legal code.
+
 ### What Rust does
 
 ```sh
@@ -143,7 +188,8 @@ println!("{first}"); // prints 10
 task rust:fixed
 ```
 
-The same fix works in C++ (`int first = values[0];`). The difference is that
+The same fix works in C++ (`int first = values[0];`) and Go
+(`first := values[0]`). The difference is that
 C++ lets you forget it and Rust doesn't.
 
 `rust/dangling.rs` is also included in [`src/lib.rs`](src/lib.rs) as a
@@ -252,14 +298,14 @@ Two more things worth knowing:
 
 ## The takeaway
 
-|                                | Part 1 in C++           | Part 2 in Rust          |
-|--------------------------------|-------------------------|-------------------------|
-| Compiles?                      | Yes, no warnings        | Yes                     |
-| Memory safe?                   | No                      | Yes                     |
-| How it fails                   | Undefined behavior      | Panic with a message    |
-| Compiler catches it?           | No                      | No                      |
-| Fuzzer catches it?             | With sanitizers enabled | Yes, out of the box     |
-| Exploitable memory corruption? | Possible                | Not from this bug       |
+|                                | Part 1 in C++           | Part 1 in Go            | Part 2 in Rust          |
+|--------------------------------|-------------------------|-------------------------|-------------------------|
+| Compiles?                      | Yes, no warnings        | Yes, `go vet` is quiet  | Yes                     |
+| Memory safe?                   | No                      | Yes                     | Yes                     |
+| How it fails                   | Undefined behavior      | Silently wrong value    | Panic with a message    |
+| Compiler catches it?           | No                      | No                      | No                      |
+| Fuzzer catches it?             | With sanitizers enabled | Only with an assertion  | Yes, out of the box     |
+| Exploitable memory corruption? | Possible                | No                      | Not from this bug       |
 
 Rust moves a big class of bugs, the "this memory is no longer yours" kind,
 from runtime to compile time. It doesn't make your logic correct. Things
@@ -286,6 +332,7 @@ stop-and-check point for oneself, before writing dodgy code.
 |---|---|
 | `task cpp` | Build and run the C++ example (prints garbage) |
 | `task cpp:asan` | Same with AddressSanitizer; passes if ASan reports the bug |
+| `task go` | Run the Go version of Part 1 (prints `10`, then `99`) |
 | `task rust` | Try to compile the Rust version of Part 1 (shows E0502) |
 | `task rust:fixed` | Run the fixed Rust version (prints `10`) |
 | `task test` | Unit tests plus the `compile_fail` doctest |
