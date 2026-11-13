@@ -1,0 +1,129 @@
+version: '3'
+
+vars:
+  FUZZ_TIME: '{{ .FUZZ_TIME | default "30" }}'
+  CPP_OUT: target/cpp
+
+tasks:
+  default:
+    cmds:
+      - task --list --sort=none
+    silent: true
+
+  build:
+    desc: Build the crate, then verify fuzz targets still compile
+    preconditions: &cargo
+      - sh: command -v cargo
+        msg: "cargo not found — install Rust from https://rustup.rs/"
+    cmds:
+      - cargo build --all-targets
+      - task: fuzz:build
+
+  test:
+    desc: Run unit tests + compile_fail doctest (example 1, Rust side)
+    preconditions: *cargo
+    cmds:
+      - cargo test {{.CLI_ARGS}}
+
+  fmt:
+    desc: Format code
+    aliases: [format]
+    preconditions: *cargo
+    cmds:
+      - cargo fmt --all
+      - cargo fmt --all --manifest-path fuzz/Cargo.toml
+
+  lint:
+    desc: Run clippy
+    preconditions: *cargo
+    cmds:
+      - cargo clippy --all-targets -- -D warnings
+
+  check:
+    desc: Format check + lint
+    preconditions: *cargo
+    cmds:
+      - cargo fmt --all --check
+      - task: lint
+
+  ci:
+    desc: Full CI sequence (check + test + C++ ASan demo)
+    cmds:
+      - task: check
+      - task: test
+      - task: cpp:asan
+
+  cpp:
+    desc: Build and run C++ dangling-reference example without sanitizers (prints whatever UB yields)
+    preconditions: &gxx
+      - sh: command -v g++
+        msg: "g++ not found — install build-essential (or your distro's g++)"
+    cmds:
+      - mkdir -p {{.CPP_OUT}}
+      - g++ -Wall -Wextra -std=c++17 cpp/dangling.cpp -o {{.CPP_OUT}}/dangling
+      - '{{.CPP_OUT}}/dangling'
+
+  rust:
+    desc: Try compiling the Rust dangling-reference example (expected to fail with E0502)
+    preconditions:
+      - sh: command -v rustc
+        msg: "rustc not found — install Rust from https://rustup.rs/"
+    cmds:
+      - mkdir -p target/rust
+      - cmd: rustc --edition 2024 rust/dangling.rs -o target/rust/dangling
+        ignore_error: true
+
+  rust:fixed:
+    desc: Run the fixed Rust version (copies the value before push)
+    preconditions: *cargo
+    cmds:
+      - cargo run --quiet --example first
+
+  cpp:asan:
+    desc: Build C++ example with AddressSanitizer; passes only if ASan reports use-after-free
+    preconditions: *gxx
+    cmds:
+      - mkdir -p {{.CPP_OUT}}
+      - g++ -g -fsanitize=address -std=c++17 cpp/dangling.cpp -o {{.CPP_OUT}}/dangling_asan
+      - '{{.CPP_OUT}}/dangling_asan 2>&1 | tee /dev/stderr | grep heap-use-after-free >/dev/null'
+
+  fuzz:
+    desc: Fuzz buggy preview until crash (example 2); pass extra libFuzzer args after --
+    aliases: [fuzz:run]
+    preconditions: &fuzz
+      - sh: command -v cargo-fuzz
+        msg: "cargo-fuzz not found — cargo install cargo-fuzz"
+      - sh: rustup toolchain list | grep -q nightly
+        msg: "Rust nightly toolchain required — rustup toolchain install nightly"
+    cmds:
+      - cargo +nightly fuzz run {{ .TARGET | default "preview" }} -- {{.CLI_ARGS}}
+
+  fuzz:list:
+    desc: List fuzz targets
+    preconditions: *fuzz
+    cmds:
+      - cargo +nightly fuzz list
+
+  fuzz:build:
+    desc: Build all fuzz targets
+    preconditions: *fuzz
+    cmds:
+      - cargo +nightly fuzz build
+
+  fuzz:smoke:
+    desc: Run fixed target for FUZZ_TIME seconds (default 30); must not crash
+    preconditions: *fuzz
+    cmds:
+      - cargo +nightly fuzz run preview_fixed -- -max_total_time={{.FUZZ_TIME}}
+
+  fuzz:clean:
+    desc: Remove fuzz crash artifacts and corpus
+    cmds:
+      - rm -rf fuzz/artifacts fuzz/corpus
+
+  clean:
+    desc: Remove build output
+    preconditions: *cargo
+    cmds:
+      - cargo clean
+      - cargo clean --manifest-path fuzz/Cargo.toml

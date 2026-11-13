@@ -1,0 +1,26 @@
+[package]
+name = "testbed-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+testbed = { path = ".." }
+
+[[bin]]
+name = "preview"
+path = "fuzz_targets/preview.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "preview_fixed"
+path = "fuzz_targets/preview_fixed.rs"
+test = false
+doc = false
+bench = false
