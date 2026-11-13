@@ -103,6 +103,16 @@ and press **Run**.
 
 ```text
 error[E0502]: cannot borrow `values` as mutable because it is also borrowed as immutable
+ --> src/main.rs:4:5
+  |
+3 |     let first = &values[0];
+  |                  ------ immutable borrow occurs here
+4 |     values.push(40);
+  |     ^^^^^^^^^^^^^^^ mutable borrow occurs here
+5 |     println!("{first}");
+  |                ----- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
 ```
 
 The program never gets built. Rust has one central rule for references, the
