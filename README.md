@@ -65,9 +65,14 @@ behavior* (UB): the language makes no promises at all about what happens.
 task cpp
 ```
 
+Or [try it in your browser on cpp.sh](https://cpp.sh/?source=%2F%2F+Example+1%2C+C%2B%2B+side%3A+compiles+cleanly%2C+but+push_back+reallocates+and%0A%2F%2F+%60first%60+dangles.+Build+with+-fsanitize%3Daddress+to+see+it.%0A%23include+%3Ciostream%3E%0A%23include+%3Cvector%3E%0A%0Aint+main%28%29+%7B%0A++++std%3A%3Avector%3Cint%3E+values+%3D+%7B10%2C+20%2C+30%7D%3B%0A++++int%26+first+%3D+values%5B0%5D%3B%0A++++values.push_back%2840%29%3B%0A++++std%3A%3Acout+%3C%3C+first+%3C%3C+%27%5Cn%27%3B%0A%7D%0A)
+and press **Run**.
+
 `g++ -Wall -Wextra` compiles it without a single warning. Running it prints
-something like `-1719258260`, a different number each time, and exits
-normally. No crash, no error. That's the dangerous part: UB often *looks*
+some number that isn't `10`, like `-1719258260`, and exits normally. On
+some machines the number changes every run, on others (cpp.sh, for example)
+it's the same wrong number every time. Either way, nothing tells you
+anything went wrong. No crash, no error. That's the dangerous part: UB often *looks*
 like it works, right up until it doesn't, or until someone exploits it.
 
 The C++ tooling *can* find it, if you ask. Build with AddressSanitizer:
