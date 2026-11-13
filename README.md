@@ -43,7 +43,9 @@ std::cout << first << '\n';                println!("{first}");
 ```
 
 Make a list, take a reference to the first element, add an element, print the
-reference. It looks harmless. Most people expect it to print `10`.
+reference. It looks harmless. Most people expect it to print `10`. (This example is
+oversimplified, but imagine you're working on a game engine where you want to inspect
+one enemy and make it spawn more, and suddenly it becomes a real problem.)
 
 ### What goes wrong
 
