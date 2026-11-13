@@ -89,7 +89,8 @@ READ of size 4 at 0x502000000010 thread T0
 ```
 
 Sanitizers are great, but they only catch bugs on code paths you actually
-run while testing, and you have to remember to turn them on.
+run while testing, and you have to remember to turn them on. (And then find
+the offending line in the code.)
 
 ### What Rust does
 
