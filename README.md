@@ -273,7 +273,12 @@ that are still worth fuzzing in Rust:
 And one honest caveat: Rust has an `unsafe` keyword that switches some of
 these checks off, for things like talking to C libraries. Code in `unsafe`
 blocks can have exactly the bugs from Part 1. The point is that you can find
-every one of those blocks with a text search.
+every one of those blocks with a text search (for "unsafe"). An interesting
+side effect is that due to the keyword name itself it suddenly feels wrong
+to write code the way it was in other low-level languages, and the trend is
+to actually instruct the compiler to disallow unsafe code altogether for
+a project (`#![forbid(unsafe_code)]`). At the very least it's a good
+stop-and-check point for oneself, before writing dodgy code.
 
 ## All tasks
 
